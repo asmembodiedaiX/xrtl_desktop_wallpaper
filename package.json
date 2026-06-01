@@ -1,0 +1,38 @@
+{
+  "name": "desktop-wallpaper-app",
+  "version": "1.0.0",
+  "description": "A modern desktop wallpaper application built with Electron + React + Node.js",
+  "main": "build/main/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\" \"npm run dev:electron\"",
+    "dev:main": "tsc --watch --project tsconfig.main.json",
+    "dev:renderer": "vite",
+    "dev:electron": "electron . --dev",
+    "build": "npm run build:main && npm run build:renderer",
+    "build:main": "tsc --project tsconfig.main.json",
+    "build:renderer": "vite build",
+    "package:win": "electron-builder --win",
+    "package:mac": "electron-builder --mac",
+    "package:linux": "electron-builder --linux",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sql.js": "^1.10.3",
+    "wallpaper": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@types/sql.js": "^1.4.9",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^28.2.8",
+    "electron-builder": "^24.13.3",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.4.3",
+    "vite": "^5.2.8"
+  }
+}
