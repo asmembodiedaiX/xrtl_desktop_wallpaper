@@ -1,7 +1,7 @@
 import { BrowserWindow, screen, app } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
-import { exec, execSync } from 'child_process'
+import { exec, spawn, ChildProcess } from 'child_process'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
@@ -9,6 +9,8 @@ const execAsync = promisify(exec)
 let wallpaperWindow: BrowserWindow | null = null
 let currentWallpaperUrl: string | null = null
 let dwmThumbnailId: string | null = null
+let mouseInterval: ReturnType<typeof setInterval> | null = null
+let clickProcess: ChildProcess | null = null
 
 // ============================================================
 // HWND 小端序 → hex
@@ -17,6 +19,188 @@ function hwndBufToHex(buf: Buffer): string {
   if (buf.length >= 8) return '0x' + buf.readBigUInt64LE(0).toString(16)
   return '0x' + buf.readUInt32LE(0).toString(16)
 }
+
+// ============================================================
+// 全局鼠标追踪 — 注入坐标到壁纸渲染进程
+// 所有动态壁纸（内置 + 用户导入）通过 window.__mx/__my 获取坐标
+// video_player.html 内嵌的 Canvas 叠加层自动渲染鼠标拖尾 + 点击涟漪
+// ============================================================
+function startMouseTracking() {
+  if (mouseInterval) return
+
+  // 20fps 注入鼠标坐标（降低频率避免视频卡顿）
+  mouseInterval = setInterval(() => {
+    if (!wallpaperWindow || wallpaperWindow.isDestroyed()) { stopMouseTracking(); return }
+    try {
+      const pos = screen.getCursorScreenPoint()
+      wallpaperWindow.webContents.executeJavaScript(
+        `window.__mx=${pos.x};window.__my=${pos.y};`
+      ).catch(() => {})
+    } catch { /* ignore */ }
+  }, 50)
+}
+
+// 异步长驻 PowerShell 进程 — 监听鼠标左键状态变化
+// 只输出状态变化事件 (DOWN/UP)，不阻塞 Node.js 事件循环
+function startClickDetection() {
+  if (clickProcess) return
+  try {
+    clickProcess = spawn('powershell', [
+      '-NoProfile', '-Command',
+      `Add-Type -MemberDefinition '[DllImport("user32.dll")]public static extern short GetAsyncKeyState(int v);' -Name K -Namespace T;
+$prev=0;
+while($true){
+  $curr=[T.K]::GetAsyncKeyState(1)-band0x8000;
+  if($curr -ne $prev){
+    if($curr){[Console]::WriteLine('DOWN')}else{[Console]::WriteLine('UP')}
+    $prev=$curr
+  }
+  Start-Sleep -Milliseconds 40
+}`
+    ], { windowsHide: true })
+
+    let buf = ''
+    clickProcess.stdout!.on('data', (data: Buffer) => {
+      buf += data.toString()
+      const lines = buf.split('\n')
+      buf = lines.pop() || ''
+      for (const line of lines) {
+        const s = line.trim()
+        if (s === 'DOWN' || s === 'UP') {
+          const down = s === 'DOWN'
+          if (wallpaperWindow && !wallpaperWindow.isDestroyed()) {
+            wallpaperWindow.webContents.executeJavaScript(
+              `window.__mousedown=${down}`
+            ).catch(() => {})
+          }
+        }
+      }
+    })
+
+    clickProcess.on('close', () => { clickProcess = null })
+    clickProcess.on('error', () => { clickProcess = null })
+  } catch { /* ignore */ }
+}
+
+function stopMouseTracking() {
+  if (mouseInterval) { clearInterval(mouseInterval); mouseInterval = null }
+}
+function stopClickDetection() {
+  if (clickProcess) {
+    clickProcess.kill()
+    clickProcess = null
+  }
+}
+function stopAllTracking() { stopMouseTracking(); stopClickDetection(); stopAudioCapture() }
+
+// ============================================================
+// 音频律动 — 使用 naudiodon 捕获系统音频输出
+// ============================================================
+let audioStream: any = null
+let audioInterval: ReturnType<typeof setInterval> | null = null
+
+function startAudioCapture() {
+  if (audioInterval) return
+  try {
+    const pa = require('naudiodon')
+    const devices = pa.getDevices()
+    // 查找可用的输入设备（优先 loopback / Stereo Mix）
+    const dev = devices.find((d: any) =>
+      d.maxInputChannels > 0 &&
+      (d.name.includes('Loopback') || d.name.includes('Stereo') || d.name.includes('Mix') || d.name.includes('映射'))
+    ) || devices.find((d: any) => d.maxInputChannels > 0)
+
+    if (!dev) { console.log('[DW] No audio input device found'); return }
+
+    audioStream = new pa.AudioIO({
+      inOptions: {
+        channelCount: 2,
+        sampleFormat: 8, // paFloat32
+        sampleRate: 22050,
+        deviceId: dev.id,
+        closeOnError: false,
+      },
+    })
+
+    const buffer: Float32Array[] = []
+    audioStream.on('data', (buf: Float32Array) => {
+      buffer.push(buf)
+      // 保持最近 4 帧
+      if (buffer.length > 4) buffer.shift()
+    })
+    audioStream.on('error', (e: any) => { console.log('[DW] Audio error:', e) })
+    audioStream.start()
+
+    // 15fps 发送 RMS 音量到容器
+    audioInterval = setInterval(() => {
+      if (!wallpaperWindow || wallpaperWindow.isDestroyed()) { stopAudioCapture(); return }
+      if (buffer.length === 0) return
+      // 计算 RMS
+      let sum = 0
+      let count = 0
+      for (const buf of buffer) {
+        for (let i = 0; i < buf.length; i++) {
+          sum += buf[i] * buf[i]
+          count++
+        }
+      }
+      const rms = Math.sqrt(sum / count)
+      // 对数映射到 0-1
+      const level = Math.min(1, Math.max(0, rms * 5))
+      wallpaperWindow.webContents.executeJavaScript(
+        `window.__audioLevel=${level.toFixed(3)}`
+      ).catch(() => {})
+    }, 66)
+    console.log('[DW] Audio capture started on:', dev.name)
+  } catch (e: any) {
+    console.log('[DW] Audio capture unavailable:', e.message)
+    // 使用模拟节拍
+    startSimulatedBeat()
+  }
+}
+
+function startSimulatedBeat() {
+  if (audioInterval) return
+  console.log('[DW] Using simulated beat')
+  audioInterval = setInterval(() => {
+    if (!wallpaperWindow || wallpaperWindow.isDestroyed()) { stopAudioCapture(); return }
+    // 多频段节拍模拟: 低频(base) + 高频变化
+    const t = Date.now() / 1000
+    const beat = Math.abs(Math.sin(t * 2.1)) * 0.7 + Math.abs(Math.sin(t * 3.7)) * 0.3
+    const level = Math.min(1, beat * (0.5 + Math.random() * 0.5))
+    wallpaperWindow.webContents.executeJavaScript(
+      `window.__audioLevel=${level.toFixed(3)}`
+    ).catch(() => {})
+  }, 66)
+}
+
+function stopAudioCapture() {
+  if (audioInterval) { clearInterval(audioInterval); audioInterval = null }
+  if (audioStream) {
+    try { audioStream.quit() } catch {}
+    audioStream = null
+  }
+}
+
+// ============================================================
+// 系统美化 — 设置壁纸特效
+// 将特效配置注入 wallpaper 窗口，Canvas 叠加层自动渲染
+// ============================================================
+export function setEffect(effect: {
+  click?: string | null
+  trail?: string | null
+  special?: string | null
+}) {
+  if (!wallpaperWindow || wallpaperWindow.isDestroyed()) {
+    return { success: false, error: '没有活动的动态壁纸窗口，请先设置一个动态壁纸' }
+  }
+  wallpaperWindow.webContents.executeJavaScript(`
+    window.__effect = Object.assign(window.__effect || {}, ${JSON.stringify(effect)});
+  `).catch(() => {})
+  return { success: true }
+}
+
+// ============================================================
 
 // ============================================================
 // ★ DWM Thumbnail 策略（Win11 24H2 首选）
@@ -271,8 +455,17 @@ export async function setDynamicWallpaper(htmlPath: string) {
         ? path.join(process.resourcesPath, '..')
         : path.dirname(path.dirname(__dirname))
       resolvedPath = path.join(appPath, 'public', htmlPath)
-    } else if (htmlPath.startsWith('file:///')) {
-      resolvedPath = htmlPath.replace(/^file:\/\/\//, '')
+    } else if (htmlPath.startsWith('file://')) {
+      // 兼容 file:///C:/... 和 file://C:/... 和 file://C:\... 三种格式
+      resolvedPath = htmlPath
+        .replace(/^file:\/{2,3}/, '')  // 去掉 file:// 或 file:///
+        .replace(/\//g, path.sep)       // 统一为系统路径分隔符
+      if (!fs.existsSync(resolvedPath)) {
+        // 兜底：尝试在 videos 目录查找
+        const videosDir = path.join(app.getPath('home'), '.xrtl_desktop_wallpaper', 'videos')
+        const altPath = path.join(videosDir, path.basename(resolvedPath))
+        if (fs.existsSync(altPath)) resolvedPath = altPath
+      }
     } else {
       const d = path.join(app.getPath('userData'), 'wallpapers')
       resolvedPath = path.join(d, htmlPath)
@@ -315,32 +508,35 @@ export async function setDynamicWallpaper(htmlPath: string) {
     })
 
     wallpaperWindow.setFocusable(false)      // 永不获取焦点，不会被 Alt+Tab 唤起
-    wallpaperWindow.setIgnoreMouseEvents(true)
+    // 不设置鼠标穿透，让容器页面可以捕获点击事件
+    // wallpaperWindow.setIgnoreMouseEvents(true)
 
+    // 加载统一的壁纸容器页面
+    const appPath = app.isPackaged
+      ? path.join(process.resourcesPath, '..')
+      : path.dirname(path.dirname(__dirname))
+    const containerPath = path.join(appPath, 'public', 'dynamic_pages', 'wallpaper_container.html')
+
+    console.log('[DW] Container path:', containerPath)
+    await wallpaperWindow.loadFile(containerPath)
+
+    // 构建壁纸URL
+    let wallpaperUrl = ''
     if (isVideo) {
-      // === 视频文件：加载 video player 页面，注入视频源 ===
-      const appPath = app.isPackaged
-        ? path.join(process.resourcesPath, '..')
-        : path.dirname(path.dirname(__dirname))
-      const playerPath = path.join(appPath, 'public', 'dynamic_pages', 'video_player.html')
-
-      console.log('[DW] Video player path:', playerPath)
-      await wallpaperWindow.loadFile(playerPath)
-
       // 使用 local-file 协议加载视频
-      const videoUrl = `local-file:///${resolvedPath.replace(/\\/g, '/')}`
-      console.log('[DW] Video URL:', videoUrl)
-      await wallpaperWindow.webContents.executeJavaScript(`
-        (function() {
-          var v = document.getElementById('v');
-          v.src = '${videoUrl}';
-        })()
-      `)
-      console.log('[DW] Video source injected')
+      wallpaperUrl = `local-file:///${resolvedPath.replace(/\\/g, '/')}`
     } else {
-      await wallpaperWindow.loadFile(resolvedPath)
+      // HTML文件使用 file:// 协议
+      wallpaperUrl = `file:///${resolvedPath.replace(/\\/g, '/')}`
     }
-    console.log('[DW] Content loaded')
+
+    console.log('[DW] Wallpaper URL:', wallpaperUrl)
+
+    // 注入壁纸URL到容器
+    await wallpaperWindow.webContents.executeJavaScript(`
+      window.__wallpaperUrl = ${JSON.stringify(wallpaperUrl)};
+    `)
+    console.log('[DW] Wallpaper URL injected')
 
     // 短暂等待首帧渲染
     await new Promise(r => setTimeout(r, 300))
@@ -360,7 +556,10 @@ export async function setDynamicWallpaper(htmlPath: string) {
     }
 
     if (ok) {
-      console.log('[DW] ✅ Done')
+      console.log('[DW] [OK] Done')
+      startMouseTracking()    // 启动鼠标坐标追踪
+      startClickDetection()  // 启动鼠标点击检测
+      startAudioCapture()    // 启动音频捕获（声音弹跳器）
     } else {
       wallpaperWindow.close()
       wallpaperWindow = null
@@ -379,10 +578,11 @@ export async function setDynamicWallpaper(htmlPath: string) {
 }
 
 export async function closeDynamicWallpaper() {
+  stopAllTracking()         // 停止鼠标追踪 + 点击检测
   // 清理 DWM Thumbnail
   if (dwmThumbnailId) {
     try {
-      execSync(
+      await execAsync(
         `powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class D{[DllImport(\"dwmapi.dll\")]public static extern int DwmUnregisterThumbnail(IntPtr id);}';[D]::DwmUnregisterThumbnail([IntPtr]::new(${dwmThumbnailId}))|Out-Null"`,
         { timeout: 5000 }
       )
@@ -401,3 +601,4 @@ export async function closeDynamicWallpaper() {
 export async function getCurrentWallpaper() {
   return { currentUrl: currentWallpaperUrl }
 }
+

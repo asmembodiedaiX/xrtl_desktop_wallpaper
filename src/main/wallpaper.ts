@@ -103,7 +103,7 @@ export function handleWallpaperActions() {
       const videoExts = ['.mp4', '.webm', '.mkv', '.avi', '.mov']
       const isVideo = videoExts.includes(ext.toLowerCase())
 
-      const destDir = path.join(app.getPath('userData'), 'wallpapers')
+      const destDir = path.join(app.getPath('home'), '.xrtl_desktop_wallpaper', 'videos')
       if (!fs.existsSync(destDir)) {
         fs.mkdirSync(destDir, { recursive: true })
       }
@@ -115,9 +115,9 @@ export function handleWallpaperActions() {
       if (isHtml) {
         url = fileName
       } else if (isVideo) {
-        url = `file://${destPath}`
+        url = `file:///${destPath.replace(/\\/g, '/')}`
       } else {
-        url = `file://${destPath}`
+        url = `file:///${destPath.replace(/\\/g, '/')}`
       }
 
       const wallpaperData: Omit<Wallpaper, 'id'> = {

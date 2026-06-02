@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setDynamicWallpaper: (htmlPath: string) => ipcRenderer.invoke('set-dynamic-wallpaper', htmlPath),
   closeDynamicWallpaper: () => ipcRenderer.invoke('close-dynamic-wallpaper'),
   getCurrentWallpaper: () => ipcRenderer.invoke('get-current-wallpaper'),
+  // 系统美化 API
+  setEffect: (effect: any) => ipcRenderer.invoke('set-effect', effect),
 })
 
 declare global {
@@ -36,6 +38,11 @@ declare global {
       setDynamicWallpaper: (htmlPath: string) => Promise<{ success: boolean; error?: string }>
       closeDynamicWallpaper: () => Promise<{ success: boolean }>
       getCurrentWallpaper: () => Promise<{ currentUrl: string | null }>
+      setEffect: (effect: {
+        click?: string | null
+        trail?: string | null
+        special?: string | null
+      }) => Promise<{ success: boolean }>
     }
   }
 }

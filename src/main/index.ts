@@ -3,7 +3,13 @@ import * as path from 'path'
 import * as fs from 'fs'
 import { setupConfiguration } from './configuration'
 import { handleWallpaperActions } from './wallpaper'
-import { setDynamicWallpaper, closeDynamicWallpaper, getCurrentWallpaper } from './dynamicWallpaper'
+import { setDynamicWallpaper, closeDynamicWallpaper, getCurrentWallpaper, setEffect } from './dynamicWallpaper'
+import { setupMouseEffectsIPC, setMainWindow } from './mouseEffects'
+
+// === 配置应用缓存目录，避免权限问题 ===
+const userDataPath = path.join(app.getPath('home'), '.xrtl_desktop_wallpaper', 'app_data')
+app.setPath('userData', userDataPath)
+app.setPath('cache', path.join(userDataPath, 'cache'))
 
 // === VSCode-style Chromium flags: 防止窗口最小化后白屏闪烁 ===
 // 参考 VSCode src/vs/platform/windows/electron-main/windowImpl.ts
@@ -46,6 +52,8 @@ function createWindow() {
   mainWindow.on('ready-to-show', () => {
     if (mainWindow) {
       mainWindow.show()
+      // 设置主窗口引用给鼠标效果模块
+      setMainWindow(mainWindow)
     }
   })
 
@@ -62,12 +70,11 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   // Register custom protocol to serve local files safely
+  // Supports HTTP Range requests for video playback
   protocol.handle('local-file', (request) => {
     try {
       const url = new URL(request.url)
-      // local-file:///C:/Users/.../xxx.jpg → url.pathname starts with /
       const rawPath = decodeURIComponent(url.pathname)
-      // Remove leading / to get Windows path like C:/Users/...
       const filePath = rawPath.replace(/^\//, '')
       const ext = path.extname(filePath).toLowerCase()
       const mimeTypes: Record<string, string> = {
@@ -83,9 +90,44 @@ app.whenReady().then(async () => {
         '.avi': 'video/x-msvideo',
         '.mov': 'video/quicktime',
       }
+      const mimeType = mimeTypes[ext] || 'application/octet-stream'
+      const fileSize = fs.statSync(filePath).size
+
+      // 检查 Range 请求头（视频播放必须）
+      const rangeHeader = request.headers.get('range')
+      if (rangeHeader) {
+        const match = rangeHeader.match(/bytes=(\d+)-(\d*)/)
+        if (match) {
+          const start = parseInt(match[1], 10)
+          const end = match[2] ? parseInt(match[2], 10) : fileSize - 1
+          const chunkSize = end - start + 1
+
+          // 读取文件的指定范围
+          const buf = Buffer.alloc(chunkSize)
+          const fd = fs.openSync(filePath, 'r')
+          fs.readSync(fd, buf, 0, chunkSize, start)
+          fs.closeSync(fd)
+
+          return new Response(buf, {
+            status: 206,
+            headers: {
+              'Content-Type': mimeType,
+              'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+              'Accept-Ranges': 'bytes',
+              'Content-Length': String(chunkSize),
+            },
+          })
+        }
+      }
+
+      // 完整文件返回
       const data = fs.readFileSync(filePath)
       return new Response(data, {
-        headers: { 'Content-Type': mimeTypes[ext] || 'image/jpeg' },
+        headers: {
+          'Content-Type': mimeType,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': String(fileSize),
+        },
       })
     } catch {
       return new Response('Not Found', { status: 404 })
@@ -123,6 +165,12 @@ app.whenReady().then(async () => {
   ipcMain.handle('set-dynamic-wallpaper', (_, htmlPath: string) => setDynamicWallpaper(htmlPath))
   ipcMain.handle('close-dynamic-wallpaper', () => closeDynamicWallpaper())
   ipcMain.handle('get-current-wallpaper', () => getCurrentWallpaper())
+  ipcMain.handle('set-effect', (_, effect: any) => setEffect(effect))
+
+  // 点击效果 IPC 处理器
+
+  // 初始化鼠标效果 IPC
+  setupMouseEffectsIPC()
 
   createWindow()
 

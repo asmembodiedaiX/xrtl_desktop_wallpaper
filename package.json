@@ -32,11 +32,15 @@
       "target": [
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "public/icon.png",
@@ -52,9 +56,12 @@
     "publish": null
   },
   "dependencies": {
+    "@nut-tree/nut-js": "^3.1.2",
     "electron-store": "^8.2.0",
+    "naudiodon": "^2.3.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "robotjs": "^0.7.1",
     "wallpaper": "^5.0.1"
   },
   "devDependencies": {

@@ -37,6 +37,7 @@
             constructor(yOffset, amplitude, frequency, speed, color) {
                 this.yOffset = yOffset;
                 this.amplitude = amplitude;
+                this.baseAmp = amplitude;     // 鼠标交互用
                 this.frequency = frequency;
                 this.speed = speed;
                 this.color = color;
@@ -74,19 +75,28 @@
         function animate() {
             ctx.fillStyle = 'linear-gradient(to bottom, #0c3483 0%, #a2b6df 50%, #6b8cce 100%)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
             gradient.addColorStop(0, '#0c3483');
             gradient.addColorStop(0.5, '#a2b6df');
             gradient.addColorStop(1, '#6b8cce');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
+            // 鼠标附近的波浪振幅加大
+            const mx = window.__mx || -1000;
+            const my = window.__my || -1000;
             waves.forEach(wave => {
+                const dist = Math.abs(my - wave.yOffset);
+                if (dist < 200) {
+                    wave.amplitude = wave.baseAmp + (200 - dist) / 200 * 30;
+                } else {
+                    wave.amplitude = wave.baseAmp;
+                }
                 wave.update();
                 wave.draw();
             });
-            
+
             requestAnimationFrame(animate);
         }
         animate();

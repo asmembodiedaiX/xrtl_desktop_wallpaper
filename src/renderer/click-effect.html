@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Click Effect</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: transparent;
+      pointer-events: none;
+    }
+    
+    .effect-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .particle {
+      position: absolute;
+      pointer-events: none;
+      animation: fadeOut 1s ease-out forwards;
+    }
+    
+    @keyframes fadeOut {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+      }
+    }
+    
+    /* 星光闪耀 */
+    .star {
+      color: #FFD700;
+      font-size: 24px;
+      text-shadow: 0 0 10px #FFD700, 0 0 20px #FFD700;
+    }
+    
+    /* 爱心飘带 */
+    .heart {
+      color: #FF69B4;
+      font-size: 20px;
+      animation: heartFloat 1.5s ease-out forwards;
+    }
+    
+    @keyframes heartFloat {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -150%) scale(0.3);
+      }
+    }
+    
+    /* 五彩纸屑 */
+    .confetti {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      animation: confettiFall 1s ease-out forwards;
+    }
+    
+    @keyframes confettiFall {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, 100px) rotate(720deg);
+      }
+    }
+    
+    /* 樱花飘落 */
+    .sakura {
+      color: #FFB7C5;
+      font-size: 18px;
+      animation: sakuraFall 2s ease-out forwards;
+    }
+    
+    @keyframes sakuraFall {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(calc(-50% + 50px), 150px) rotate(360deg);
+      }
+    }
+    
+    /* 雪花纷飞 */
+    .snow {
+      color: #E0FFFF;
+      font-size: 16px;
+      animation: snowFall 1.5s ease-out forwards;
+    }
+    
+    @keyframes snowFall {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(calc(-50% - 30px), 120px) rotate(180deg);
+      }
+    }
+    
+    /* 星星坠落 */
+    .falling-star {
+      color: #FFD93D;
+      font-size: 20px;
+      animation: starFall 1s ease-in forwards;
+    }
+    
+    @keyframes starFall {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, 100px) scale(0.2);
+      }
+    }
+    
+    /* 气泡上升 */
+    .bubble {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(135, 206, 235, 0.8), rgba(135, 206, 235, 0.3));
+      border: 1px solid rgba(135, 206, 235, 0.5);
+      animation: bubbleRise 1.2s ease-out forwards;
+    }
+    
+    @keyframes bubbleRise {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -100px) scale(0.5);
+      }
+    }
+    
+    /* 火焰燃烧 */
+    .fire {
+      color: #FF4500;
+      font-size: 22px;
+      animation: fireBurn 0.8s ease-out forwards;
+    }
+    
+    @keyframes fireBurn {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      50% {
+        transform: translate(-50%, -30%) scale(1.2);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -80%) scale(0.3);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="effect-container" id="effectContainer"></div>
+  
+  <script>
+    const { ipcRenderer } = require('electron')
+    const container = document.getElementById('effectContainer')
+    let currentEffect = null
+    
+    // 监听效果切换
+    ipcRenderer.on('set-click-effect', (_, effectType) => {
+      currentEffect = effectType
+      console.log('Click effect set to:', effectType)
+    })
+    
+    // 创建粒子效果
+    function createParticle(x, y, type) {
+      const particle = document.createElement('div')
+      particle.className = `particle ${type}`
+      particle.style.left = x + 'px'
+      particle.style.top = y + 'px'
+      
+      switch (type) {
+        case 'star':
+          particle.innerHTML = '✨'
+          break
+        case 'heart':
+          particle.innerHTML = '💕'
+          break
+        case 'confetti':
+          const colors = ['#FF6347', '#FFD700', '#00CED1', '#FF69B4', '#7B68EE']
+          particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
+          break
+        case 'sakura':
+          particle.innerHTML = '🌸'
+          break
+        case 'snow':
+          particle.innerHTML = '❄️'
+          break
+        case 'falling-star':
+          particle.innerHTML = '⭐'
+          break
+        case 'bubble':
+          // 气泡使用CSS样式
+          break
+        case 'fire':
+          particle.innerHTML = '🔥'
+          break
+      }
+      
+      container.appendChild(particle)
+      
+      // 动画结束后移除元素
+      setTimeout(() => {
+        particle.remove()
+      }, 2000)
+    }
+    
+    // 监听鼠标点击
+    document.addEventListener('click', (e) => {
+      console.log('Click detected at:', e.clientX, e.clientY, 'Effect:', currentEffect)
+      
+      if (!currentEffect) return
+      
+      const x = e.clientX
+      const y = e.clientY
+      
+      // 通知主进程点击位置，用于转发
+      ipcRenderer.send('click-forward', { x, y })
+      
+      switch (currentEffect) {
+        case '星光闪耀':
+          for (let i = 0; i < 5; i++) {
+            setTimeout(() => {
+              const offsetX = (Math.random() - 0.5) * 60
+              const offsetY = (Math.random() - 0.5) * 60
+              createParticle(x + offsetX, y + offsetY, 'star')
+            }, i * 50)
+          }
+          break
+        case '爱心飘带':
+          for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+              const offsetX = (Math.random() - 0.5) * 40
+              createParticle(x + offsetX, y, 'heart')
+            }, i * 100)
+          }
+          break
+        case '五彩纸屑':
+          for (let i = 0; i < 8; i++) {
+            const offsetX = (Math.random() - 0.5) * 80
+            const offsetY = (Math.random() - 0.5) * 80
+            createParticle(x + offsetX, y + offsetY, 'confetti')
+          }
+          break
+        case '樱花飘落':
+          for (let i = 0; i < 4; i++) {
+            setTimeout(() => {
+              const offsetX = (Math.random() - 0.5) * 60
+              createParticle(x + offsetX, y, 'sakura')
+            }, i * 150)
+          }
+          break
+        case '雪花纷飞':
+          for (let i = 0; i < 5; i++) {
+            setTimeout(() => {
+              const offsetX = (Math.random() - 0.5) * 50
+              createParticle(x + offsetX, y, 'snow')
+            }, i * 100)
+          }
+          break
+        case '星星坠落':
+          createParticle(x, y, 'falling-star')
+          setTimeout(() => createParticle(x + 10, y - 10, 'falling-star'), 100)
+          setTimeout(() => createParticle(x - 10, y - 5, 'falling-star'), 200)
+          break
+        case '气泡上升':
+          for (let i = 0; i < 4; i++) {
+            setTimeout(() => {
+              const offsetX = (Math.random() - 0.5) * 50
+              createParticle(x + offsetX, y, 'bubble')
+            }, i * 120)
+          }
+          break
+        case '火焰燃烧':
+          for (let i = 0; i < 4; i++) {
+            setTimeout(() => {
+              const offsetX = (Math.random() - 0.5) * 30
+              const offsetY = (Math.random() - 0.5) * 20
+              createParticle(x + offsetX, y + offsetY, 'fire')
+            }, i * 80)
+          }
+          break
+      }
+    })
+    
+    // 添加鼠标按下事件监听
+    document.addEventListener('mousedown', (e) => {
+      console.log('Mousedown at:', e.clientX, e.clientY)
+    })
+    
+    // 添加鼠标移动事件监听
+    document.addEventListener('mousemove', (e) => {
+      // 可以在这里追踪鼠标位置
+    })
+  </script>
+</body>
+</html>

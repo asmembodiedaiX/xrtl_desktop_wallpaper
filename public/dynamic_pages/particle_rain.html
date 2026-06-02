@@ -72,20 +72,41 @@
             }
         }
         
+        // === 鼠标交互 — 从 window.__mx / __my 读取（主进程 executeJavaScript 注入） ===
+        // 也兼容标准 mousemove 事件
+        let mouseX = -1000, mouseY = -1000;
+        document.addEventListener('mousemove', function(e) {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
         const particles = [];
         for (let i = 0; i < 200; i++) {
             particles.push(new Particle());
         }
-        
+
         function animate() {
+            // 每帧从全局变量读取最新鼠标坐标
+            if (typeof window.__mx === 'number') mouseX = window.__mx;
+            if (typeof window.__my === 'number') mouseY = window.__my;
+
             ctx.fillStyle = 'rgba(26, 26, 46, 0.1)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             particles.forEach(particle => {
+                // 粒子向鼠标位置偏移
+                const dx = mouseX - particle.x;
+                const dy = mouseY - particle.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 300 && dist > 1) {
+                    const force = (300 - dist) / 300 * 0.5;
+                    particle.x += (dx / dist) * force;
+                    particle.y += (dy / dist) * force * 0.3;
+                }
                 particle.update();
                 particle.draw();
             });
-            
+
             requestAnimationFrame(animate);
         }
         animate();

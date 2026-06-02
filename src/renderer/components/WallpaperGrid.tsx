@@ -28,12 +28,12 @@ function WallpaperCard({ wallpaper, isHovered, onHover, onSetWallpaper, onToggle
     if (wallpaper.url.startsWith('dynamic_pages/')) {
       return `/dynamic_pages/${wallpaper.url.replace('dynamic_pages/', '')}`
     }
-    // 视频文件：转为 local-file 协议
-    if (wallpaper.type === 'video' && wallpaper.url.startsWith('file://')) {
-      return `local-file:///${wallpaper.url.replace(/^file:\/\//, '').replace(/\\/g, '/')}`
-    }
+    // file:// URL → local-file:// 协议（统一处理 2/3 斜杠 + 反斜杠）
     if (wallpaper.url.startsWith('file://')) {
-      return `local-file:///${wallpaper.url.replace(/^file:\/\//, '').replace(/\\/g, '/')}`
+      const cleanPath = wallpaper.url
+        .replace(/^file:\/{2,3}/, '')  // 去掉 file:// 或 file:///
+        .replace(/\\/g, '/')           // 反斜杠 → 正斜杠
+      return `local-file:///${cleanPath}`
     }
     return wallpaper.url
   }, [wallpaper.localPath, wallpaper.url, wallpaper.type])

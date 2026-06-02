@@ -69,11 +69,16 @@
         }
         
         class Firework {
-            constructor() {
+            constructor(targetX, targetY) {
                 this.x = Math.random() * canvas.width;
                 this.y = canvas.height;
-                this.targetY = Math.random() * (canvas.height * 0.4) + 50;
-                this.velocity = { x: 0, y: -12 - Math.random() * 4 };
+                this.targetX = targetX ?? (Math.random() * canvas.width);
+                this.targetY = targetY ?? (Math.random() * (canvas.height * 0.4) + 50);
+                const dx = this.targetX - this.x;
+                const dy = this.targetY - this.y;
+                const angle = Math.atan2(dy, dx);
+                const speed = 12 + Math.random() * 4;
+                this.velocity = { x: Math.cos(angle) * speed * 0.3, y: Math.sin(angle) * speed };
                 this.hue = Math.random() * 360;
                 this.particles = [];
                 this.exploded = false;
@@ -82,10 +87,11 @@
             
             update() {
                 if (!this.exploded) {
+                    this.x += this.velocity.x;
                     this.y += this.velocity.y;
                     this.velocity.y += 0.2;
-                    
-                    if (this.y <= this.targetY) {
+
+                    if (this.y <= this.targetY || this.x <= 0 || this.x >= canvas.width) {
                         this.exploded = true;
                         for (let i = 0; i < 80; i++) {
                             this.particles.push(new Particle(this.x, this.y, this.hue));
@@ -123,9 +129,11 @@
         const fireworks = [];
         
         function launchFirework() {
-            fireworks.push(new Firework());
+            const mx = window.__mx;
+            const my = window.__my;
+            fireworks.push(new Firework(mx, my));
         }
-        
+
         setInterval(launchFirework, 800);
         launchFirework();
         launchFirework();

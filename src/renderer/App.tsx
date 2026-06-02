@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import Header from './components/Header'
 import WallpaperGrid from './components/WallpaperGrid'
 import Dialog from './components/Dialog'
+import SystemBeauty from './components/SystemBeauty'
+import Toast from './components/Toast'
 import { Wallpaper } from '../shared/types'
 
 function App() {
@@ -22,6 +24,7 @@ function App() {
     message: '',
     type: 'info'
   })
+  const [toast, setToast] = useState({ show: false, message: '' })
 
   useEffect(() => {
     loadWallpapers()
@@ -57,11 +60,9 @@ function App() {
     }
     
     if (result.success) {
-      setDialog({
-        isOpen: true,
-        title: '设置成功',
-        message: wallpaper?.type === 'dynamic' ? '动态壁纸已成功设置' : '壁纸已成功设置为桌面背景',
-        type: 'info'
+      setToast({ 
+        show: true, 
+        message: wallpaper?.type === 'dynamic' ? '动态壁纸已成功设置' : '壁纸已成功设置为桌面背景' 
       })
     } else {
       setDialog({
@@ -208,8 +209,8 @@ function App() {
         )
       case '系统美化':
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6B7280', fontSize: '18px' }}>
-            系统美化功能开发中...
+          <div style={{ height: '100%' }}>
+            <SystemBeauty />
           </div>
         )
       case '组件':
@@ -254,7 +255,7 @@ function App() {
         onTabChange={setActiveTab}
       />
 
-      <div className="flex-1">
+      <div className="flex-1" style={{ height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
         {renderContent()}
       </div>
 
@@ -265,6 +266,12 @@ function App() {
         type={dialog.type}
         onConfirm={dialog.onConfirm}
         onClose={() => setDialog({ ...dialog, isOpen: false })}
+      />
+
+      <Toast
+        message={toast.message}
+        isVisible={toast.show}
+        onClose={() => setToast({ show: false, message: '' })}
       />
     </div>
   )
