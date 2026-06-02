@@ -47,7 +47,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "桌面壁纸"
-    }
+    },
+    "publish": null
   },
   "dependencies": {
     "electron-store": "^8.2.0",
