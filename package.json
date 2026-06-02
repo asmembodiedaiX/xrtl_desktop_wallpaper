@@ -44,9 +44,6 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "public/icon.png",
-      "uninstallerIcon": "public/icon.png",
-      "installerHeaderIcon": "public/icon.png",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "桌面壁纸"
