@@ -45,12 +45,22 @@ function App() {
   }
 
   const handleSetWallpaper = async (url: string) => {
-    const result = await window.electronAPI.setWallpaper(url)
+    const wallpaper = wallpapers.find(w => w.url === url) || favoriteWallpapers.find(w => w.url === url)
+    
+    let result
+    if (wallpaper?.type === 'dynamic' || wallpaper?.type === 'video') {
+      // 设置动态壁纸 / 视频壁纸
+      result = await window.electronAPI.setDynamicWallpaper(wallpaper.url)
+    } else {
+      // 设置静态壁纸
+      result = await window.electronAPI.setWallpaper(url)
+    }
+    
     if (result.success) {
       setDialog({
         isOpen: true,
         title: '设置成功',
-        message: '壁纸已成功设置为桌面背景',
+        message: wallpaper?.type === 'dynamic' ? '动态壁纸已成功设置' : '壁纸已成功设置为桌面背景',
         type: 'info'
       })
     } else {
@@ -104,27 +114,22 @@ function App() {
     }
   }
 
-  const handleResetDatabase = async () => {
-    setDialog({
-      isOpen: true,
-      title: '确认重置',
-      message: '确定要重置数据库吗？这将删除所有壁纸并恢复默认壁纸。',
-      type: 'confirm',
-      onConfirm: async () => {
-        await window.electronAPI.resetDatabase()
-        loadWallpapers()
-        loadFavoriteWallpapers()
-      }
-    })
-  }
+
 
   const categories = ['全部', ...new Set(wallpapers.map(w => w.category))]
 
-  const filteredWallpapers = wallpapers.filter(w => {
+  const filteredStaticWallpapers = wallpapers.filter(w => {
     const matchSearch = w.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                        w.category.toLowerCase().includes(searchTerm.toLowerCase())
     const matchCategory = selectedCategory === '全部' || w.category === selectedCategory
-    return matchSearch && matchCategory
+    return matchSearch && matchCategory && w.type === 'static'
+  })
+
+  const filteredDynamicWallpapers = wallpapers.filter(w => {
+    const matchSearch = w.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       w.category.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchCategory = selectedCategory === '全部' || w.category === selectedCategory
+    return matchSearch && matchCategory && (w.type === 'dynamic' || w.type === 'video')
   })
 
   const renderContent = () => {
@@ -134,41 +139,41 @@ function App() {
           <>
             <div style={{ padding: '20px 32px' }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
-              {categories.map(category => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  style={{
-                    padding: '12px 24px',
-                    borderRadius: '20px',
-                    border: 'none',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    backgroundColor: selectedCategory === category ? '#3B82F6' : 'rgba(255,255,255,0.1)',
-                    color: selectedCategory === category ? '#fff' : '#9CA3AF',
-                    WebkitAppRegion: 'no-drag',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (selectedCategory !== category) {
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (selectedCategory !== category) {
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                    }
-                  }}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
+                {categories.map(category => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    style={{
+                      padding: '12px 24px',
+                      borderRadius: '20px',
+                      border: 'none',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      backgroundColor: selectedCategory === category ? '#3B82F6' : 'rgba(255,255,255,0.1)',
+                      color: selectedCategory === category ? '#fff' : '#9CA3AF',
+                      WebkitAppRegion: 'no-drag',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedCategory !== category) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedCategory !== category) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                      }
+                    }}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <WallpaperGrid
-              wallpapers={filteredWallpapers}
+              wallpapers={filteredStaticWallpapers}
               onSetWallpaper={handleSetWallpaper}
               onToggleFavorite={handleToggleFavorite}
               showDelete={false}
@@ -177,9 +182,23 @@ function App() {
         )
       case '动态壁纸':
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6B7280', fontSize: '18px' }}>
-            动态壁纸功能开发中...
-          </div>
+          <>
+            <div style={{ padding: '20px 32px' }}>
+              <h2 style={{ color: '#fff', fontSize: '20px', fontWeight: '600', margin: '0 0 24px 0' }}>
+                动态壁纸
+              </h2>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: '0 0 24px 0' }}>
+                点击设置按钮即可将动态壁纸应用到桌面
+              </p>
+            </div>
+
+            <WallpaperGrid
+              wallpapers={filteredDynamicWallpapers}
+              onSetWallpaper={handleSetWallpaper}
+              onToggleFavorite={handleToggleFavorite}
+              showDelete={false}
+            />
+          </>
         )
       case '电脑主题':
         return (
@@ -231,7 +250,6 @@ function App() {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         onImport={handleImport}
-        onResetDatabase={handleResetDatabase}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />

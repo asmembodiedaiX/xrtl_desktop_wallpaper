@@ -5,5 +5,6 @@ export interface Wallpaper {
   category: string
   isFavorite: boolean
   localPath?: string
+  type: 'static' | 'dynamic' | 'video'
   createdAt: string
 }

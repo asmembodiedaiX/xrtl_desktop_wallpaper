@@ -8,10 +8,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addWallpaper: (wallpaper: Omit<Wallpaper, 'id'>) => ipcRenderer.invoke('add-wallpaper', wallpaper),
   deleteWallpaper: (id: number) => ipcRenderer.invoke('delete-wallpaper', id),
   toggleFavorite: (id: number, imageUrl: string, title: string) => ipcRenderer.invoke('toggle-favorite', id, imageUrl, title),
-  resetDatabase: () => ipcRenderer.invoke('reset-database'),
+
   importWallpaper: (filePath: string) => ipcRenderer.invoke('import-wallpaper', filePath),
   showOpenDialog: () => ipcRenderer.invoke('show-open-dialog'),
   closeWindow: () => ipcRenderer.invoke('close-window'),
+  minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
+  // 动态壁纸相关 API
+  setDynamicWallpaper: (htmlPath: string) => ipcRenderer.invoke('set-dynamic-wallpaper', htmlPath),
+  closeDynamicWallpaper: () => ipcRenderer.invoke('close-dynamic-wallpaper'),
+  getCurrentWallpaper: () => ipcRenderer.invoke('get-current-wallpaper'),
 })
 
 declare global {
@@ -23,10 +28,14 @@ declare global {
       addWallpaper: (wallpaper: Omit<Wallpaper, 'id'>) => Promise<number>
       deleteWallpaper: (id: number) => Promise<void>
       toggleFavorite: (id: number, imageUrl: string, title: string) => Promise<{ success: boolean; localPath?: string; error?: string }>
-      resetDatabase: () => Promise<void>
+
       importWallpaper: (filePath: string) => Promise<number>
       showOpenDialog: () => Promise<{ canceled: boolean; filePaths: string[] }>
       closeWindow: () => Promise<void>
+      minimizeWindow: () => Promise<void>
+      setDynamicWallpaper: (htmlPath: string) => Promise<{ success: boolean; error?: string }>
+      closeDynamicWallpaper: () => Promise<{ success: boolean }>
+      getCurrentWallpaper: () => Promise<{ currentUrl: string | null }>
     }
   }
 }

@@ -16,17 +16,51 @@
     "package:linux": "electron-builder --linux",
     "start": "electron ."
   },
+  "build": {
+    "appId": "com.example.desktop-wallpaper-app",
+    "productName": "桌面壁纸",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "public/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        },
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "public/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/icon.png",
+      "uninstallerIcon": "public/icon.png",
+      "installerHeaderIcon": "public/icon.png",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "桌面壁纸"
+    }
+  },
   "dependencies": {
     "electron-store": "^8.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "sql.js": "^1.10.3",
     "wallpaper": "^5.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
-    "@types/sql.js": "^1.4.9",
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
     "electron": "^28.2.8",

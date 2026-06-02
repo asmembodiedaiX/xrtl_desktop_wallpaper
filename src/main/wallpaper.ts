@@ -1,12 +1,12 @@
 import { ipcMain, app } from 'electron'
 import wallpaper from 'wallpaper'
-import { getWallpapers, addWallpaper, deleteWallpaper, toggleFavorite, resetDatabase, getFavoriteWallpapers, setFavoriteWithLocalPath } from './database'
+import { getWallpapers, addWallpaper, deleteWallpaper, toggleFavorite, getFavoriteWallpapers, setFavoriteWithLocalPath } from './configuration'
 import { Wallpaper } from '../shared/types'
 import * as path from 'path'
 import * as fs from 'fs'
 
 async function resolveLocalPath(imagePath: string): Promise<string> {
-  if (imagePath.startsWith('builtin_pictures/')) {
+  if (imagePath.startsWith('builtin_pictures/') || imagePath.startsWith('dynamic_pages/')) {
     const appPath = app.getAppPath()
     let builtinPath = path.join(appPath, 'public', imagePath)
 
@@ -21,7 +21,7 @@ async function resolveLocalPath(imagePath: string): Promise<string> {
     if (fs.existsSync(builtinPath)) {
       return builtinPath
     }
-    throw new Error(`Builtin picture not found: ${imagePath}`)
+    throw new Error(`Builtin resource not found: ${imagePath}`)
   }
 
   return imagePath.replace(/^file:\/\//, '')
@@ -92,15 +92,16 @@ export function handleWallpaperActions() {
     }
   })
 
-  ipcMain.handle('reset-database', () => {
-    resetDatabase()
-  })
+
 
   ipcMain.handle('import-wallpaper', async (_, filePath: string) => {
     try {
       const fileName = path.basename(filePath)
       const ext = path.extname(fileName)
       const title = path.basename(fileName, ext)
+      const isHtml = ext.toLowerCase() === '.html' || ext.toLowerCase() === '.htm'
+      const videoExts = ['.mp4', '.webm', '.mkv', '.avi', '.mov']
+      const isVideo = videoExts.includes(ext.toLowerCase())
 
       const destDir = path.join(app.getPath('userData'), 'wallpapers')
       if (!fs.existsSync(destDir)) {
@@ -110,11 +111,21 @@ export function handleWallpaperActions() {
       const destPath = path.join(destDir, fileName)
       fs.copyFileSync(filePath, destPath)
 
+      let url: string
+      if (isHtml) {
+        url = fileName
+      } else if (isVideo) {
+        url = `file://${destPath}`
+      } else {
+        url = `file://${destPath}`
+      }
+
       const wallpaperData: Omit<Wallpaper, 'id'> = {
-        url: `file://${destPath}`,
+        url,
         title,
-        category: '自定义',
+        category: isHtml ? '动态' : isVideo ? '视频' : '自定义',
         isFavorite: false,
+        type: isHtml ? 'dynamic' : isVideo ? 'video' : 'static',
         createdAt: new Date().toISOString(),
       }
 

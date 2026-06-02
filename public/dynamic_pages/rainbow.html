@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>彩虹</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #000; height: 100vh; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+        
+        let time = 0;
+        
+        function animate() {
+            time += 0.02;
+            
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i <= 10; i++) {
+                const hue = ((time * 20 + i * 36) % 360);
+                gradient.addColorStop(i / 10, `hsl(${hue}, 100%, 50%)`);
+            }
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < 5; i++) {
+                const x = Math.sin(time * (0.5 + i * 0.2)) * canvas.width * 0.3 + canvas.width / 2;
+                const y = Math.cos(time * (0.3 + i * 0.15)) * canvas.height * 0.3 + canvas.height / 2;
+                const size = 50 + Math.sin(time * 0.8 + i) * 30;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + Math.sin(time + i) * 0.05})`;
+                ctx.fill();
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>

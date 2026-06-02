@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>闪电</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #1a1a2e; height: 100vh; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+        
+        class Lightning {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = 0;
+                this.segments = [];
+                this.createSegments();
+            }
+            
+            createSegments() {
+                let x = this.x;
+                let y = this.y;
+                
+                while (y < canvas.height) {
+                    this.segments.push({ x, y });
+                    x += (Math.random() - 0.5) * 60;
+                    y += 30 + Math.random() * 40;
+                }
+                this.segments.push({ x: x + (Math.random() - 0.5) * 40, y: canvas.height });
+            }
+            
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.segments[0].x, this.segments[0].y);
+                
+                for (let i = 1; i < this.segments.length; i++) {
+                    ctx.lineTo(this.segments[i].x, this.segments[i].y);
+                }
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                ctx.strokeStyle = 'rgba(100, 150, 255, 0.5)';
+                ctx.lineWidth = 10;
+                ctx.stroke();
+            }
+        }
+        
+        let lightning = null;
+        let showLightning = false;
+        let flashTime = 0;
+        
+        function createLightning() {
+            lightning = new Lightning();
+            showLightning = true;
+            flashTime = 0;
+        }
+        
+        setInterval(createLightning, 2000 + Math.random() * 3000);
+        
+        function animate() {
+            ctx.fillStyle = 'rgba(26, 26, 46, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (showLightning) {
+                lightning.draw();
+                flashTime++;
+                
+                if (flashTime > 10) {
+                    showLightning = false;
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>

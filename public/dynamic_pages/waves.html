@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>波浪</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            overflow: hidden;
+            background: linear-gradient(to bottom, #0c3483 0%, #a2b6df 50%, #6b8cce 100%);
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+        
+        class Wave {
+            constructor(yOffset, amplitude, frequency, speed, color) {
+                this.yOffset = yOffset;
+                this.amplitude = amplitude;
+                this.frequency = frequency;
+                this.speed = speed;
+                this.color = color;
+                this.phase = 0;
+            }
+            
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(0, canvas.height);
+                
+                for (let x = 0; x <= canvas.width; x++) {
+                    const y = this.yOffset + 
+                        Math.sin((x * this.frequency) + this.phase) * this.amplitude +
+                        Math.sin((x * this.frequency * 0.5) + this.phase * 1.2) * (this.amplitude * 0.5);
+                    ctx.lineTo(x, y);
+                }
+                
+                ctx.lineTo(canvas.width, canvas.height);
+                ctx.closePath();
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+            
+            update() {
+                this.phase += this.speed;
+            }
+        }
+        
+        const waves = [
+            new Wave(canvas.height * 0.6, 30, 0.015, 0.02, 'rgba(255, 255, 255, 0.1)'),
+            new Wave(canvas.height * 0.65, 40, 0.012, 0.025, 'rgba(255, 255, 255, 0.15)'),
+            new Wave(canvas.height * 0.7, 50, 0.01, 0.03, 'rgba(255, 255, 255, 0.2)'),
+        ];
+        
+        function animate() {
+            ctx.fillStyle = 'linear-gradient(to bottom, #0c3483 0%, #a2b6df 50%, #6b8cce 100%)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#0c3483');
+            gradient.addColorStop(0.5, '#a2b6df');
+            gradient.addColorStop(1, '#6b8cce');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            waves.forEach(wave => {
+                wave.update();
+                wave.draw();
+            });
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>

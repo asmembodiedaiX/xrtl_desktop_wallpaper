@@ -19,12 +19,24 @@ function WallpaperCard({ wallpaper, isHovered, onHover, onSetWallpaper, onToggle
   }, [isHovered])
 
   const imageSrc = useMemo(() => {
-    return wallpaper.localPath
-      ? `local-file:///${wallpaper.localPath.replace(/\\/g, '/')}`
-      : wallpaper.url.startsWith('builtin_pictures/')
-      ? `./builtin_pictures/${wallpaper.url.replace('builtin_pictures/', '')}`
-      : wallpaper.url
-  }, [wallpaper.localPath, wallpaper.url])
+    if (wallpaper.localPath) {
+      return `local-file:///${wallpaper.localPath.replace(/\\/g, '/')}`
+    }
+    if (wallpaper.url.startsWith('builtin_pictures/')) {
+      return `/builtin_pictures/${wallpaper.url.replace('builtin_pictures/', '')}`
+    }
+    if (wallpaper.url.startsWith('dynamic_pages/')) {
+      return `/dynamic_pages/${wallpaper.url.replace('dynamic_pages/', '')}`
+    }
+    // 视频文件：转为 local-file 协议
+    if (wallpaper.type === 'video' && wallpaper.url.startsWith('file://')) {
+      return `local-file:///${wallpaper.url.replace(/^file:\/\//, '').replace(/\\/g, '/')}`
+    }
+    if (wallpaper.url.startsWith('file://')) {
+      return `local-file:///${wallpaper.url.replace(/^file:\/\//, '').replace(/\\/g, '/')}`
+    }
+    return wallpaper.url
+  }, [wallpaper.localPath, wallpaper.url, wallpaper.type])
 
   const handleSetWallpaper = useCallback(() => {
     onSetWallpaper(wallpaper.localPath || wallpaper.url)
@@ -56,22 +68,59 @@ function WallpaperCard({ wallpaper, isHovered, onHover, onSetWallpaper, onToggle
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <img
-          key={wallpaper.id}
-          src={imageSrc}
-          alt={wallpaper.title}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            transition: isLoaded ? 'transform 0.3s ease, opacity 0.3s ease' : 'none',
-            transform: isHovered ? 'scale(1.1)' : 'scale(1)',
-            opacity: isLoaded ? '1' : '0.5',
-            willChange: isHovered || prevIsHoveredRef.current ? 'transform' : 'auto',
-          }}
-          onLoad={() => setIsLoaded(true)}
-          loading="lazy"
-        />
+        {wallpaper.type === 'dynamic' ? (
+          <iframe
+            key={wallpaper.id}
+            src={imageSrc}
+            title={wallpaper.title}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              transition: isLoaded ? 'transform 0.3s ease, opacity 0.3s ease' : 'none',
+              transform: isHovered ? 'scale(1.1)' : 'scale(1)',
+              opacity: isLoaded ? '1' : '0.5',
+              willChange: isHovered || prevIsHoveredRef.current ? 'transform' : 'auto',
+            }}
+            onLoad={() => setIsLoaded(true)}
+            sandbox="allow-scripts"
+          />
+        ) : wallpaper.type === 'video' ? (
+          <video
+            key={wallpaper.id}
+            src={imageSrc}
+            muted
+            loop
+            autoPlay
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transition: isLoaded ? 'transform 0.3s ease, opacity 0.3s ease' : 'none',
+              transform: isHovered ? 'scale(1.1)' : 'scale(1)',
+              opacity: isLoaded ? '1' : '0.5',
+              willChange: isHovered || prevIsHoveredRef.current ? 'transform' : 'auto',
+            }}
+            onLoadedData={() => setIsLoaded(true)}
+          />
+        ) : (
+          <img
+            key={wallpaper.id}
+            src={imageSrc}
+            alt={wallpaper.title}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transition: isLoaded ? 'transform 0.3s ease, opacity 0.3s ease' : 'none',
+              transform: isHovered ? 'scale(1.1)' : 'scale(1)',
+              opacity: isLoaded ? '1' : '0.5',
+              willChange: isHovered || prevIsHoveredRef.current ? 'transform' : 'auto',
+            }}
+            onLoad={() => setIsLoaded(true)}
+            loading="lazy"
+          />
+        )}
 
         <button
           onClick={handleToggleFavorite}
@@ -146,6 +195,8 @@ const WallpaperCardMemo = memo(WallpaperCard, (prevProps, nextProps) => {
   if (prevProps.wallpaper.id !== nextProps.wallpaper.id) return false
   if (prevProps.isHovered !== nextProps.isHovered) return false
   if (prevProps.wallpaper.isFavorite !== nextProps.wallpaper.isFavorite) return false
+  if (prevProps.wallpaper.type !== nextProps.wallpaper.type) return false
+  if (prevProps.wallpaper.url !== nextProps.wallpaper.url) return false
   if (prevProps.showDelete !== nextProps.showDelete) return false
   return true
 })
