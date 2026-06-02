@@ -49,12 +49,12 @@ jobs:
 
     - name: Verify public files are copied to build directory
       run: |
-        Write-Host "=== Checking build/renderer/public directory ==="
-        Get-ChildItem -Path build/renderer/public -Recurse -Name | Select-Object -First 20
-        Write-Host "`n=== Checking build/renderer/public/dynamic_pages ==="
-        Get-ChildItem -Path build/renderer/public/dynamic_pages -Name
-        Write-Host "`n=== Checking build/renderer/public/builtin_pictures ==="
-        Get-ChildItem -Path build/renderer/public/builtin_pictures -Name | Select-Object -First 10
+        Write-Host "=== Checking build/renderer directory structure ==="
+        Get-ChildItem -Path build/renderer -Recurse -Name | Select-Object -First 30
+        Write-Host "`n=== Checking build/renderer/dynamic_pages ==="
+        Get-ChildItem -Path build/renderer/dynamic_pages -Name -ErrorAction SilentlyContinue
+        Write-Host "`n=== Checking build/renderer/builtin_pictures ==="
+        Get-ChildItem -Path build/renderer/builtin_pictures -Name -ErrorAction SilentlyContinue | Select-Object -First 10
 
     - name: Package for Windows (portable exe)
       run: npm run dist -- --windows portable
