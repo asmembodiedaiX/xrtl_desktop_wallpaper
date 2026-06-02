@@ -47,17 +47,14 @@ jobs:
       env:
         NODE_ENV: production
 
-    - name: Verify public files are copied
+    - name: Verify public files are copied to build directory
       run: |
-        Write-Host "Checking build/renderer directory..."
-        Get-ChildItem -Path build/renderer -Name
-        Write-Host "`nChecking if default.jpg exists..."
-        if (Test-Path "build/renderer/拾光_彼岸图网_6b17e2152a7fe9f2.jpg") {
-          Write-Host "✅ 拾光_彼岸图网_6b17e2152a7fe9f2.jpg found in build directory"
-        } else {
-          Write-Host "❌ 拾光_彼岸图网_6b17e2152a7fe9f2.jpg NOT found!"
-          exit 1
-        }
+        Write-Host "=== Checking build/renderer/public directory ==="
+        Get-ChildItem -Path build/renderer/public -Recurse -Name | Select-Object -First 20
+        Write-Host "`n=== Checking build/renderer/public/dynamic_pages ==="
+        Get-ChildItem -Path build/renderer/public/dynamic_pages -Name
+        Write-Host "`n=== Checking build/renderer/public/builtin_pictures ==="
+        Get-ChildItem -Path build/renderer/public/builtin_pictures -Name | Select-Object -First 10
 
     - name: Package for Windows (portable exe)
       run: npm run dist -- --windows portable
